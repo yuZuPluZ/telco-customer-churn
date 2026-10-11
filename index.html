@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Naive Bayes Interactive Visualizer — Step-by-Step</title>
+<style>
+:root{
+  --bg:#000;
+  --line:#222838;
+  --text:#e8ebf2;
+  --mute:#8a93a8;
+  --c0:#22d3ee;
+  --c1:#f472b6;
+  --acc:#a78bfa;
+  --ok:#34d399;
+  --warn:#fbbf24;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:#000;
+  background-image:
+    radial-gradient(900px 380px at 10% -10%,rgba(34,211,238,.10),transparent 60%),
+    radial-gradient(800px 380px at 95% -5%,rgba(244,114,182,.09),transparent 60%);
+  background-attachment:fixed;
+  color:var(--text);
+  font:14px/1.55 "Inter","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+}
+.mono{font-family:"JetBrains Mono","SFMono-Regular",Consolas,monospace}
+
+/* ---------- Header ---------- */
+header{padding:14px 24px 12px;border-bottom:1px solid var(--line);background:rgba(0,0,0,.55);backdrop-filter:blur(6px)}
+header h1{margin:0;font-size:24px;letter-spacing:-.01em;font-weight:750;
+  background:linear-gradient(90deg,var(--c0),var(--acc) 55%,var(--c1));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{margin:4px 0 0;color:#b7bed0;max-width:1250px;font-size:13.5px}
+header p b{color:#fff;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:2px 11px;font-size:12px;color:var(--mute);background:#07090d}
+.chip i{font-style:normal;color:var(--text)}
+
+/* ---------- Layout ---------- */
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;padding:16px 20px;min-height:0}
+.col{overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:16px;padding:2px 8px 6px 2px;scrollbar-width:thin;scrollbar-color:#2b3347 transparent}
+.col::-webkit-scrollbar{width:9px}
+.col::-webkit-scrollbar-thumb{background:#2b3347;border-radius:9px}
+.col::-webkit-scrollbar-thumb:hover{background:#3a4561}
+.card{
+  flex:none;background:linear-gradient(180deg,#0f121a,#090b10);
+  border:1px solid var(--line);border-radius:18px;padding:16px 16px 18px;
+  box-shadow:0 22px 44px -20px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.02) inset,0 0 32px -18px rgba(167,139,250,.35);
+}
+.card h2{margin:0 0 2px;font-size:15.5px;font-weight:700;letter-spacing:.01em}
+.card .sub{margin:0 0 12px;color:var(--mute);font-size:12.5px}
+.sec{margin-top:16px}
+.sec h3{margin:0 0 6px;font-size:13px;font-weight:650;color:#cdd3e2;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.sec h3 small{font-weight:400;color:var(--mute)}
+
+/* ---------- Controls ---------- */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#07090d}
+.seg button{all:unset;cursor:pointer;padding:6px 12px;font-size:12.5px;color:var(--mute);border-right:1px solid var(--line);display:flex;align-items:center;gap:6px}
+.seg button:last-child{border-right:0}
+.seg button:hover{color:#fff;background:#10141d}
+.seg button.on{color:#fff;background:#161c2a;box-shadow:inset 0 -2px 0 var(--acc)}
+.seg button:focus-visible,.btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.btn{all:unset;cursor:pointer;border:1px solid var(--line);background:#0b0e14;color:var(--text);border-radius:11px;padding:7px 13px;font-size:13px;font-weight:550;text-align:center}
+.btn:hover{background:#151a26;border-color:#32405f}
+.btn.primary{background:linear-gradient(135deg,#7c3aed,#2563eb);border-color:transparent;color:#fff}
+.btn.primary:hover{filter:brightness(1.12)}
+.btn.go{background:linear-gradient(135deg,#059669,#0ea5a4);border-color:transparent;color:#fff}
+.btn.go:hover{filter:brightness(1.12)}
+.btn.stop{background:linear-gradient(135deg,#d97706,#dc2626);border-color:transparent;color:#fff}
+.btn.danger:hover{border-color:#7f1d1d;color:#fecaca}
+select,input[type=number]{background:#07090d;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:6px 9px;font:inherit;font-size:12.5px}
+input[type=range]{width:100%;accent-color:var(--acc);margin:2px 0 0}
+.canvas-wrap{width:100%;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#05070b;line-height:0}
+canvas{display:block;touch-action:none}
+#cv{cursor:crosshair}
+.hint{font-size:12px;color:var(--mute);margin:8px 2px 0;line-height:1.5}
+.hint kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:11px;color:#cbd2e3;background:#0a0d13}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px}
+.field{display:block}
+.field .lab{display:flex;justify-content:space-between;font-size:12.5px;color:#c4cadb}
+.field .lab b{color:#fff;font-weight:600}
+.field .tip{font-size:11.5px;color:var(--mute);margin-top:1px;line-height:1.35;display:block}
+.btnrow{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:10px;margin-top:16px}
+.status{margin-top:12px;font-size:12.5px;color:#cbd2e3;border:1px dashed var(--line);border-radius:11px;padding:8px 11px;min-height:38px;background:#07090d}
+.chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#c4cadb}
+
+/* ---------- Model state ---------- */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.stat{border:1px solid var(--line);border-radius:12px;padding:7px 10px;background:#080a0f}
+.stat small{display:block;color:var(--mute);font-size:11px}
+.stat b{font-size:15px;font-weight:650}
+.phases{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ph{border:1px solid var(--line);border-radius:12px;padding:8px 9px;background:#080a0f;transition:border-color .25s,box-shadow .25s,background .25s}
+.ph .t{font-weight:650;font-size:12.5px;display:flex;gap:6px;align-items:center}
+.ph .t span{width:18px;height:18px;border-radius:50%;background:#1a2132;display:grid;place-items:center;font-size:11px;color:#cbd2e3;flex:none}
+.ph code{display:block;margin:5px 0;font-size:10.8px;color:#c7b8ff;word-break:break-word;line-height:1.35}
+.ph p{margin:0;font-size:11.5px;color:var(--mute);line-height:1.4}
+.ph .v{margin-top:6px;font-size:11px;color:var(--text);line-height:1.4}
+.ph.flash{border-color:var(--acc);background:#13112a;box-shadow:0 0 20px -4px rgba(167,139,250,.65)}
+.ph.flash .t span{background:var(--acc);color:#000}
+.eq{margin-top:8px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:#07090d;font-size:12.5px;overflow-x:auto;white-space:nowrap;line-height:1.7}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{color:var(--mute);font-weight:500;text-align:right;padding:4px 7px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#0b0e14}
+.tbl td{text-align:right;padding:3px 7px;border-bottom:1px solid #161b27}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl tr[data-i]{cursor:pointer}
+.tbl tr[data-i]:hover td{background:#10141d}
+.tbl tr.sel td{background:#1a1636}
+.tbl td.win{background:rgba(167,139,250,.14);font-weight:650}
+.scroll{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:11px;scrollbar-width:thin;scrollbar-color:#2b3347 transparent}
+.pos{color:var(--c1)}.neg{color:var(--c0)}.good{color:var(--ok)}.bad{color:#fb7185}
+.nav{display:inline-flex;gap:6px}
+.nav button{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:0 9px;font-size:12px;color:#cbd2e3}
+.nav button:hover{background:#161c2a}
+.say{margin-top:8px;font-size:12.5px;color:#cfd5e6;background:#0a0d14;border-left:3px solid var(--acc);padding:7px 10px;border-radius:0 9px 9px 0}
+details{border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:#07090d}
+details summary{cursor:pointer;font-weight:600;font-size:13px}
+details p,details li{color:#b7bed0;font-size:12.5px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:12.5px;color:#c4cadb;margin-top:10px}
+.legend .sw{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.legend label{display:inline-flex;align-items:center;gap:6px}
+.gwrap{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gwrap svg{width:100%;background:#07090d;border:1px solid var(--line);border-radius:11px}
+
+/* ---------- Footer ---------- */
+footer{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 24px;border-top:1px solid var(--line);background:rgba(0,0,0,.7);font-size:12.5px;color:var(--mute);min-height:46px}
+footer b{color:#fff;font-weight:600}
+footer .ce{color:#fff;font-weight:700;letter-spacing:.02em;padding:2px 12px;border:1px solid var(--line);border-radius:999px;background:linear-gradient(90deg,rgba(34,211,238,.15),rgba(244,114,182,.15))}
+
+@media (max-width:1000px){
+  body{display:block;overflow:auto;height:auto}
+  main{grid-template-columns:minmax(0,1fr);padding:12px}
+  .col{overflow:visible}
+  .phases{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stats{grid-template-columns:repeat(3,1fr)}
+  .gwrap{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.ph{transition:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Naive Bayes Classifier — Interactive Step-by-Step Visualizer</h1>
+  <p>Using <b>Bayes' Theorem</b> combined with the <b>Naive Independence Assumption</b>: <b>P(Class | X) ∝ P(Class) × ∏ P(xⱼ | Class)</b>. For continuous data, it estimates class <b>priors P(Class)</b>, feature <b>means (μ)</b>, and <b>variances (σ²)</b> to form Gaussian likelihood distributions. Classification is performed via probabilistic scoring without iterative gradient descent.</p>
+  <div class="chips">
+    <span class="chip">Algorithm: <i>Naive Bayes (Gaussian)</i></span>
+    <span class="chip">Optimization: <i>Closed-form MLE (Counting & Statistics)</i></span>
+    <span class="chip">Loss Metric: <i>Negative Log-Likelihood</i></span>
+    <span class="chip">Project Context: <i>Telecom Churn Prediction (High Recall)</i></span>
+  </div>
+</header>
+
+<main>
+  <!-- ================= LEFT ================= -->
+  <div class="col" id="colL">
+    <section class="card" id="canvasCard">
+      <h2>Data Canvas</h2>
+      <p class="sub">Interact with 2D data points. Hollow points are pending ingestion; filled points are absorbed by the Naive Bayes model. Decision boundaries update dynamically.</p>
+      <div class="toolbar">
+        <div class="seg" id="tools" role="group" aria-label="Drawing tool">
+          <button data-tool="c0" class="on"><span class="dot" style="background:var(--c0)"></span><span class="n0">Class 0</span></button>
+          <button data-tool="c1"><span class="dot" style="background:var(--c1)"></span><span class="n1">Class 1</span></button>
+          <button data-tool="erase">Erase</button>
+          <button data-tool="inspect">Inspect</button>
+        </div>
+        <span class="chip" id="cnt">0 points</span>
+      </div>
+      <div class="canvas-wrap" id="cwrap"><canvas id="cv"></canvas></div>
+      <p class="hint">Click or drag to add points. Use <kbd>Right-click</kbd> or <kbd>Shift</kbd>+drag to erase. Select <b>Inspect</b> and click any point to view its complete Naive Bayes posterior calculation on the right.</p>
+
+      <div class="grid2 sec">
+        <label class="field"><span class="lab">Brush size <b id="brushV">40 px</b></span>
+          <input type="range" id="brush" min="0" max="120" step="1" value="40">
+          <span class="tip">0 = single precise point.</span></label>
+        <label class="field"><span class="lab">Spray density <b id="densV">6</b></span>
+          <input type="range" id="dens" min="1" max="20" step="1" value="6">
+          <span class="tip">Points added per spray action.</span></label>
+      </div>
+      <div class="toolbar sec" style="margin-bottom:0">
+        <select id="dset" aria-label="Dataset"></select>
+        <label style="font-size:12.5px;color:#c4cadb">N <input type="number" id="nPts" value="160" min="10" max="800" step="10" style="width:76px"></label>
+        <button class="btn" id="btnRand">Random data</button>
+        <button class="btn danger" id="btnClear">Clear all</button>
+      </div>
+    </section>
+
+    <section class="card" id="ctrlCard">
+      <h2>Hyperparameters &amp; Controls</h2>
+      <p class="sub">Naive Bayes parameters are derived directly from data statistics. Configure smoothing and prior probabilities below.</p>
+      <div class="grid2">
+        <label class="field"><span class="lab">Variance Smoothing (ε) <b id="smV"></b></span>
+          <input type="range" id="smooth" min="-9" max="0" step="0.5" value="-3">
+          <span class="tip">Added to feature variances to prevent division by zero or overly narrow likelihood curves.</span></label>
+        <label class="field"><span class="lab">Class Prior Distribution</span>
+          <select id="prior" style="width:100%"><option value="empirical">Empirical — N<sub>c</sub> / N</option><option value="uniform">Uniform — 50% / 50%</option></select>
+          <span class="tip">Initial probability assumption for each class prior to evaluating features.</span></label>
+        <label class="field"><span class="lab">Batch Step Size <b id="perV"></b></span>
+          <input type="range" id="per" min="1" max="50" step="1" value="5">
+          <span class="tip">Number of samples ingested per execution step.</span></label>
+        <label class="field"><span class="lab">Ingestion Order</span>
+          <select id="ord" style="width:100%"><option value="shuffle">Shuffled</option><option value="draw">Order of drawing</option></select>
+          <span class="tip">Determines the sequence in which data samples update running statistics.</span></label>
+        <label class="field"><span class="lab">Animation Speed <b id="spdV"></b></span>
+          <input type="range" id="spd" min="1" max="60" step="1" value="8">
+          <span class="tip">Steps processed per second during playback.</span></label>
+        <div class="field" style="align-self:end">
+          <label class="chk"><input type="checkbox" id="ell" checked> Show Gaussian Ellipses (1σ and 2σ)</label>
+          <span class="tip">Visualizes feature variance bounds assuming conditional independence.</span>
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="btnStep" title="Ingest next sample batch">Step</button>
+        <button class="btn go" id="btnPlay">Play until Convergence</button>
+        <button class="btn" id="btnReset">Reset Model</button>
+      </div>
+      <div class="status" id="status">Add data points or select a dataset to begin.</div>
+    </section>
+  </div>
+
+  <!-- ================= RIGHT ================= -->
+  <div class="col" id="colR">
+    <section class="card" id="stateCard">
+      <h2>Model State &amp; Parameters</h2>
+      <p class="sub">Current probabilistic parameters computed from ingested samples.</p>
+      <div class="stats" id="mstats"></div>
+
+      <div class="sec">
+        <h3>Naive Bayes Calculation Pipeline <small>(updates on each step)</small></h3>
+        <div class="phases" id="phases"></div>
+      </div>
+
+      <div class="sec">
+        <h3>Estimated Statistics <small>Priors, Means, and Variances per Class</small></h3>
+        <div id="params"></div>
+        <div class="eq mono" id="eq"></div>
+      </div>
+
+      <div class="sec">
+        <h3>Last Ingested Sample <small>Running mean and variance updates</small></h3>
+        <div id="update"></div>
+      </div>
+
+      <div class="sec">
+        <h3>Bayes Rule Breakdown for Selected Point
+          <span class="nav"><button data-act="prev" title="Previous point">‹</button><button data-act="next" title="Next point">›</button></span></h3>
+        <div id="sample"></div>
+      </div>
+
+      <div class="sec">
+        <h3>Data Matrix <small>First 10 records — click any row to inspect</small></h3>
+        <div class="scroll"><table class="tbl" id="matrix"></table></div>
+      </div>
+
+      <div class="sec">
+        <details>
+          <summary>Real-World Application: Telco Customer Churn</summary>
+          <p>In predictive analytics projects (e.g., Telco Customer Churn with 7,043 samples), Gaussian Naive Bayes excels by delivering a high <b>Recall score (0.875)</b>[cite: 5]. This ensures maximum detection of high-risk churning customers, making it ideal for business retention campaigns where missing a churner carries high cost[cite: 5].</p>
+          <p>Select the <b>“Telco churn (tenure vs charges)”</b> dataset below to explore how feature distributions map to churn decisions[cite: 5].</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="card" id="lossCard">
+      <h2>Loss &amp; Convergence Graph</h2>
+      <p class="sub">Tracks Negative Log-Likelihood loss across execution steps, converging towards the optimal closed-form Naive Bayes solution.</p>
+      <div class="canvas-wrap" id="lwrap"><canvas id="lcv"></canvas></div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--c0)"></i>Current Loss</span>
+        <span><i class="sw" style="background:var(--warn)"></i>Target Loss (Full Dataset)</span>
+        <label><input type="checkbox" id="showAcc" checked> <i class="sw" style="background:var(--ok)"></i>Accuracy</label>
+        <label><input type="checkbox" id="logY"> Log y-axis</label>
+        <span id="lossNow" class="mono" style="margin-left:auto"></span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div><b>Group members:</b> Nattanon Nanna (67015041) · Thanaphon Poophantong (67015052) · Suphakan Phadee (67015138) · Peerapat Kruwkaew Na Lampoon (67015181) · Sirapop Sangsuk (67015193)</div>
+  <div class="ce">CE KMITL</div>
+</footer>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const sig = z => 1/(1+Math.exp(-Math.max(-40,Math.min(40,z))));
+const softplus = t => t>0 ? t+Math.log1p(Math.exp(-t)) : Math.log1p(Math.exp(t));
+const gauss = () => { let u=0; while(!u) u=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*Math.random()); };
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+const fmt = (v,d=3) => {
+  if(v===null||v===undefined||!isFinite(v)) return "—";
+  if(Math.abs(v)>=1e5||(v!==0&&Math.abs(v)<1e-4)) return v.toExponential(2);
+  const s=v.toFixed(d); return /^-0\.0*$/.test(s)? s.slice(1) : s;
+};
+const C0=[34,211,238], C1=[244,114,182];
+const LOSS_CAP=13.8;
+
+/* ---------------- Datasets ---------------- */
+const DATASETS = {
+  blobs:{label:"Two blobs (easy)",names:["Class 0","Class 1"],axes:["x₁","x₂"],
+    gen(n){return Array.from({length:n},(_, i)=>{const c=i%2;return {x:(c?1.6:-1.6)+gauss()*.7,y:(c?1:-1)+gauss()*.7,c}})}},
+  overlap:{label:"Overlapping blobs (noisy)",names:["Class 0","Class 1"],axes:["x₁","x₂"],
+    gen(n){return Array.from({length:n},(_, i)=>{const c=i%2;return {x:(c?.9:-.9)+gauss()*1.05,y:(c?.5:-.5)+gauss()*1.05,c}})}},
+  spread:{label:"Different spreads (curved boundary)",names:["Class 0 (tight)","Class 1 (wide)"],axes:["x₁","x₂"],
+    gen(n){return Array.from({length:n},(_, i)=>{const c=i%2; return c?{x:1.0+gauss()*1.25,y:.2+gauss()*1.05,c}:{x:-1.0+gauss()*.5,y:-.1+gauss()*.55,c}})}},
+  ring:{label:"Ring (variances differ)",names:["Class 0 (inside)","Class 1 (ring)"],axes:["x₁","x₂"],
+    gen(n){return Array.from({length:n},(_, i)=>{const c=i%2; if(!c) return {x:gauss()*.6,y:gauss()*.6,c}; const a=Math.random()*6.2832,r=2.2+gauss()*.25; return {x:Math.cos(a)*r,y:Math.sin(a)*r,c}})}},
+  corr:{label:"Correlated bands (breaks independence)",names:["Class 0","Class 1"],axes:["x₁","x₂"],
+    gen(n){return Array.from({length:n},(_, i)=>{const c=i%2,u=gauss()*1.5,v=gauss()*.35+(c?.95:-.95);return {x:(u-v)/Math.SQRT2,y:(u+v)/Math.SQRT2,c}})}},
+  xor:{label:"XOR corners (fails: same means)",names:["Class 0","Class 1"],axes:["x₁","x₂"],
+    gen(n){return Array.from({length:n},()=>{const sx=Math.random()<.5?-1:1,sy=Math.random()<.5?-1:1;return {x:sx*1.6+gauss()*.55,y:sy*1.5+gauss()*.55,c:sx*sy>0?1:0}})}},
+  churn:{label:"Telco churn (tenure vs charges)",names:["Stayed","Churned"],axes:["tenure (std.)","MonthlyCharges (std.)"],
+    gen(n){return Array.from({length:n},()=>{const x=clamp(gauss()*1.1,-3.8,3.8),y=clamp(.25*x+gauss()*1.0,-2.8,2.8);const p=sig(-1.7*x+.9*y-.9);return {x,y,c:Math.random()<p?1:0}})}}
+};
+const dsel=$("#dset"); for(const k in DATASETS){const o=document.createElement("option");o.value=k;o.textContent=DATASETS[k].label;dsel.appendChild(o);}
+
+/* ---------------- State ---------------- */
+const P={smooth:1e-3,prior:"empirical",per:5,order:"shuffle",spd:8,ell:true,brush:40,dens:6};
+let pts=[], order=[], seen=0, nextId=1, tool="c0", sel=-1, meta=DATASETS.blobs;
+const newSt=()=>({n:0,mu:[0,0],m2:[0,0]});
+let S=[newSt(),newSt()], eps=1e-9, scorer=null;
+let loss=Math.LN2, acc=.5, target=Math.LN2, hist=[[0,Math.LN2,.5]];
+let lastDet=null, lastBatch=[], converged=false, playing=false;
+
+const mk=(x,y,c)=>({id:nextId++,x,y,c,s:false,g:0,p:.5,l:0,pred:1});
+const shuffle=a=>{ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const syncSeen=()=>{ order.forEach((p,i)=>{p.s=i<seen;}); };
+
+/* ---------- Core Naive Bayes Math ---------- */
+function absorbInto(st,p){
+  const s=st[p.c], f=[p.x,p.y];
+  const det={p,c:p.c,old:{n:s.n,mu:[...s.mu],m2:[...s.m2]},delta:[0,0]};
+  s.n++;
+  for(let j=0;j<2;j++){ const d=f[j]-s.mu[j]; det.delta[j]=d; s.mu[j]+=d/s.n; s.m2[j]+=d*(f[j]-s.mu[j]); }
+  det.neu={n:s.n,mu:[...s.mu],m2:[...s.m2]};
+  return det;
+}
+function computeEps(){
+  const n=pts.length; if(!n) return 1e-9;
+  let mx=0,my=0; for(const p of pts){mx+=p.x;my+=p.y;} mx/=n; my/=n;
+  let vx=0,vy=0; for(const p of pts){vx+=(p.x-mx)**2;vy+=(p.y-my)**2;} vx/=n; vy/=n;
+  return Math.max(P.smooth*Math.max(vx,vy),1e-9);
+}
+function priorsOf(st){
+  const n0=st[0].n,n1=st[1].n,t=n0+n1;
+  if(!t) return [.5,.5];
+  if(P.prior==="uniform") return [.5,.5];
+  return [n0/t,n1/t];
+}
+function makeScorer(st){
+  if(!st[0].n||!st[1].n) return null;
+  const pr=priorsOf(st);
+  const par=[0,1].map(c=>({n:st[c].n,pr:pr[c],lp:Math.log(pr[c]),mu:[...st[c].mu],v:st[c].m2.map(m=>m/st[c].n+eps)}));
+  const ll=(c,j,x)=>-.5*Math.log(2*Math.PI*par[c].v[j])-((x-par[c].mu[j])**2)/(2*par[c].v[j]);
+  return {par,ll,logs:(x,y)=>[0,1].map(c=>par[c].lp+ll(c,0,x)+ll(c,1,y))};
+}
+function lossAcc(sc,write){
+  const n=pts.length; if(!n) return {loss:Math.LN2,acc:0};
+  const maj=S[1].n>=S[0].n?1:0;
+  let L=0,ok=0;
+  for(const p of pts){
+    let g=0,pr=.5,pred=maj,l=Math.LN2;
+    if(sc){ const s=sc.logs(p.x,p.y); g=s[1]-s[0]; pr=sig(g); pred=g>=0?1:0; l=Math.min(LOSS_CAP,p.c?softplus(-g):softplus(g)); }
+    L+=l; if(pred===p.c) ok++;
+    if(write){p.g=g;p.p=pr;p.l=l;p.pred=pred;}
+  }
+  return {loss:L/n,acc:ok/n};
+}
+function evaluate(){
+  scorer=makeScorer(S);
+  const r=lossAcc(scorer,true); loss=r.loss; acc=r.acc;
+  const full=[newSt(),newSt()]; for(const p of pts) absorbInto(full,p);
+  const sf=makeScorer(full);
+  target = sf ? lossAcc(sf,false).loss : Math.LN2;
+}
+function rebuild(){
+  S=[newSt(),newSt()];
+  for(let i=0;i<seen;i++) absorbInto(S,order[i]);
+  eps=computeEps(); syncSeen();
+}
+function afterChange(){ evaluate(); hist=[[seen,loss,acc]]; schedule(true,true); }
+function dataChanged(){
+  rebuild(); lastDet=null; lastBatch=[];
+  if(sel>=pts.length) sel=-1;
+  $("#cnt").textContent=pts.length+" points";
+  afterChange();
+}
+function insertOrder(p){
+  if(P.order==="shuffle") order.splice(seen+Math.floor(Math.random()*(order.length-seen+1)),0,p); else order.push(p);
+}
+function reorderUnseen(){
+  const head=order.slice(0,seen), tail=order.slice(seen);
+  if(P.order==="shuffle") shuffle(tail); else tail.sort((a,b)=>a.id-b.id);
+  order=head.concat(tail);
+}
+function resetModel(quiet){
+  stopPlay(); seen=0;
+  order = P.order==="shuffle" ? shuffle([...pts]) : [...pts].sort((a,b)=>a.id-b.id);
+  rebuild(); lastDet=null; lastBatch=[]; sel=sel>=pts.length?-1:sel;
+  afterChange();
+  if(!quiet) setMsg(pts.length?"Model reset: no samples absorbed yet. Press Step to ingest the first batch.":"Add points or select random data to begin.");
+}
+
+function stepOnce(){
+  const N=order.length;
+  if(!N){ setMsg("Add some data points first."); return false; }
+  if(seen>=N){ return false; }
+  const k=Math.min(P.per,N-seen), batch=[]; let det=null, c0=0,c1=0;
+  const before=loss;
+  for(let i=0;i<k;i++){ const p=order[seen]; det=absorbInto(S,p); batch.push(p); seen++; if(p.c) c1++; else c0++; }
+  syncSeen(); lastBatch=batch; lastDet=det; evaluate();
+  hist.push([seen,loss,acc]); if(hist.length>5000) hist.splice(1,200);
+  converged=seen>=N;
+  const rdy=scorer?"":" Model is waiting for samples from both classes.";
+  setMsg(`Absorbed ${k} sample${k>1?"s":""} (${c0}× ${meta.names[0]}, ${c1}× ${meta.names[1]}); ${seen}/${N} read. Loss ${fmt(before,3)} → ${fmt(loss,3)}.${rdy}${converged?" All samples absorbed — model matches closed-form Naive Bayes solution.":""}`);
+  return true;
+}
+function stopPlay(){ playing=false; updatePlayBtn(); }
+function updatePlayBtn(){ const bt=$("#btnPlay"); bt.textContent=playing?"Pause":"Play until Convergence"; bt.className="btn "+(playing?"stop":"go"); }
+let lastT=0, accT=0;
+function loop(t){
+  if(!playing) return;
+  const dt=Math.min(100,t-lastT); lastT=t; accT+=dt*P.spd/1000;
+  let k=Math.floor(accT); accT-=k; let ran=false;
+  while(k-->0){
+    if(!stepOnce()){ stopPlay(); break; }
+    ran=true;
+    if(converged){ stopPlay(); setMsg(`Converged: all ${order.length} samples absorbed. Final loss ${fmt(loss,3)}, accuracy ${(acc*100).toFixed(1)}%.`); break; }
+  }
+  schedule(ran,false);
+  if(playing) requestAnimationFrame(loop);
+}
+function startPlay(){
+  if(!pts.length){ setMsg("Add some data points first."); return; }
+  if(seen>=order.length) resetModel(true);
+  playing=true; updatePlayBtn(); setMsg("Ingesting samples and updating likelihood distributions…");
+  lastT=performance.now(); accT=0; requestAnimationFrame(loop);
+}
+
+const cv=$("#cv"), ctx=cv.getContext("2d"), bg=document.createElement("canvas"), bgx=bg.getContext("2d");
+let W=600,H=450,dpr=1,scale=75,bgDirty=true, mouse=null;
+const XR=4;
+function fitCanvas(){
+  const wrap=$("#cwrap"); W=Math.max(260,Math.floor(wrap.clientWidth)); H=Math.round(W*.75);
+  dpr=window.devicePixelRatio||1;
+  cv.style.width=W+"px"; cv.style.height=H+"px"; cv.width=W*dpr; cv.height=H*dpr;
+  bg.width=cv.width; bg.height=cv.height; scale=W/(2*XR); bgDirty=true;
+}
+const toPx=(x,y)=>[W/2+x*scale,H/2-y*scale];
+const toData=(px,py)=>[(px-W/2)/scale,(H/2-py)/scale];
+const mix=p=>[C0[0]+(C1[0]-C0[0])*p,C0[1]+(C1[1]-C0[1])*p,C0[2]+(C1[2]-C0[2])*p].map(Math.round);
+
+function drawBase(){
+  const g=bgx; g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  g.fillStyle="#04060a"; g.fillRect(0,0,W,H);
+  const cell=8, nx=Math.ceil(W/cell), ny=Math.ceil(H/cell), s=nx+1;
+  let Z=null;
+  if(scorer){
+    Z=new Float32Array(s*(ny+1));
+    for(let j=0;j<=ny;j++) for(let i=0;i<=nx;i++){ const [x,y]=toData(i*cell,j*cell); const l=scorer.logs(x,y); Z[j*s+i]=l[1]-l[0]; }
+    for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+      const a=j*s+i, z=(Z[a]+Z[a+1]+Z[a+s]+Z[a+s+1])/4, p=sig(z), c=mix(p);
+      g.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${(.04+.34*Math.abs(2*p-1)).toFixed(3)})`;
+      g.fillRect(i*cell,j*cell,cell+.5,cell+.5);
+    }
+  }
+  g.lineWidth=1; g.font="10px system-ui,sans-serif"; g.fillStyle="#5d667c";
+  for(let k=-XR;k<=XR;k++){ const [px]=toPx(k,0); g.strokeStyle=k===0?"rgba(255,255,255,.25)":"rgba(255,255,255,.06)"; g.beginPath(); g.moveTo(px,0); g.lineTo(px,H); g.stroke(); if(k) g.fillText(k,px+3,H/2+11); }
+  const yr=Math.floor(H/2/scale);
+  for(let k=-yr;k<=yr;k++){ const [,py]=toPx(0,k); g.strokeStyle=k===0?"rgba(255,255,255,.25)":"rgba(255,255,255,.06)"; g.beginPath(); g.moveTo(0,py); g.lineTo(W,py); g.stroke(); if(k) g.fillText(k,W/2+4,py-3); }
+  if(Z){
+    g.save(); g.strokeStyle="#fff"; g.lineWidth=2.4; g.shadowColor="rgba(255,255,255,.9)"; g.shadowBlur=9; g.lineCap="round";
+    g.beginPath();
+    for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+      const a=Z[j*s+i], bb=Z[j*s+i+1], c=Z[(j+1)*s+i+1], d=Z[(j+1)*s+i];
+      const x0=i*cell,y0=j*cell,x1=x0+cell,y1=y0+cell, q=[];
+      if((a>=0)!==(bb>=0)) q.push([x0+cell*a/(a-bb),y0]);
+      if((bb>=0)!==(c>=0)) q.push([x1,y0+cell*bb/(bb-c)]);
+      if((d>=0)!==(c>=0)) q.push([x0+cell*d/(d-c),y1]);
+      if((a>=0)!==(d>=0)) q.push([x0,y0+cell*a/(a-d)]);
+      if(q.length>=2){ g.moveTo(q[0][0],q[0][1]); g.lineTo(q[1][0],q[1][1]); }
+      if(q.length===4){ g.moveTo(q[2][0],q[2][1]); g.lineTo(q[3][0],q[3][1]); }
+    }
+    g.stroke(); g.restore();
+  }
+}
+const colOf=(c,a)=>c?`rgba(244,114,182,${a})`:`rgba(34,211,238,${a})`;
+
+function render(){
+  if(bgDirty){ drawBase(); bgDirty=false; }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  ctx.drawImage(bg,0,0,bg.width,bg.height,0,0,W,H);
+  if(P.ell){
+    for(let c=0;c<2;c++){
+      const st=S[c]; if(!st.n) continue;
+      const [cx,cy]=toPx(st.mu[0],st.mu[1]);
+      const sx=Math.sqrt(st.m2[0]/st.n+eps)*scale, sy=Math.sqrt(st.m2[1]/st.n+eps)*scale;
+      ctx.save(); ctx.lineWidth=2;
+      ctx.strokeStyle=colOf(c,.95); ctx.beginPath(); ctx.ellipse(cx,cy,Math.max(sx,1.5),Math.max(sy,1.5),0,0,6.2832); ctx.stroke();
+      ctx.setLineDash([5,4]); ctx.lineWidth=1.4; ctx.strokeStyle=colOf(c,.55);
+      ctx.beginPath(); ctx.ellipse(cx,cy,Math.max(sx*2,3),Math.max(sy*2,3),0,0,6.2832); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineWidth=2.4; ctx.strokeStyle=colOf(c,1);
+      ctx.beginPath(); ctx.moveTo(cx-7,cy); ctx.lineTo(cx+7,cy); ctx.moveTo(cx,cy-7); ctx.lineTo(cx,cy+7); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  for(const p of pts){
+    const [px,py]=toPx(p.x,p.y);
+    if(px<-10||px>W+10||py<-10||py>H+10) continue;
+    ctx.beginPath(); ctx.arc(px,py,4.6,0,6.2832);
+    if(p.s){ ctx.fillStyle=p.c?"rgb(244,114,182)":"rgb(34,211,238)"; ctx.fill(); ctx.lineWidth=1; ctx.strokeStyle="rgba(0,0,0,.8)"; ctx.stroke(); }
+    else { ctx.fillStyle=colOf(p.c,.12); ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle=colOf(p.c,.9); ctx.stroke(); }
+    if(scorer && p.pred!==p.c){ ctx.beginPath(); ctx.arc(px,py,7.6,0,6.2832); ctx.lineWidth=1.3; ctx.strokeStyle="rgba(255,255,255,.85)"; ctx.stroke(); }
+  }
+  for(const p of lastBatch){ if(!p.s) continue; const [px,py]=toPx(p.x,p.y); ctx.beginPath(); ctx.arc(px,py,10,0,6.2832); ctx.lineWidth=1.4; ctx.strokeStyle="rgba(251,191,36,.9)"; ctx.stroke(); }
+  if(sel>=0 && pts[sel]){ const [px,py]=toPx(pts[sel].x,pts[sel].y); ctx.strokeStyle="#fff"; ctx.lineWidth=2.2; ctx.beginPath(); ctx.arc(px,py,13,0,6.2832); ctx.stroke(); }
+  if(mouse && tool!=="inspect"){
+    const er=tool==="erase"; const r=er?Math.max(P.brush,10):Math.max(P.brush,2);
+    ctx.save(); ctx.setLineDash([4,4]); ctx.lineWidth=1.3;
+    ctx.strokeStyle=er?"#fff":(tool==="c1"?"rgb(244,114,182)":"rgb(34,211,238)");
+    ctx.beginPath(); ctx.arc(mouse[0],mouse[1],r,0,6.2832); ctx.stroke(); ctx.restore();
+  }
+  ctx.font="600 11.5px system-ui"; ctx.textBaseline="middle";
+  ctx.fillStyle="rgb(34,211,238)"; ctx.beginPath(); ctx.arc(14,14,4.5,0,6.2832); ctx.fill();
+  ctx.fillStyle="#cfd5e6"; ctx.fillText(meta.names[0],24,14);
+  const w0=ctx.measureText(meta.names[0]).width;
+  ctx.fillStyle="rgb(244,114,182)"; ctx.beginPath(); ctx.arc(46+w0,14,4.5,0,6.2832); ctx.fill();
+  ctx.fillStyle="#cfd5e6"; ctx.fillText(meta.names[1],56+w0,14);
+  ctx.textBaseline="alphabetic"; ctx.font="11px system-ui"; ctx.fillStyle="#8a93a8";
+  ctx.textAlign="right"; ctx.fillText(meta.axes[0]+" →",W-8,H-8); ctx.textAlign="left";
+  ctx.fillText("↑ "+meta.axes[1],8,H-8);
+  ctx.textAlign="right"; ctx.fillStyle="#cfd5e6"; ctx.font="600 11.5px ui-monospace,Consolas,monospace";
+  ctx.fillText(`read ${seen}/${order.length}  loss ${fmt(loss,3)}  acc ${(acc*100).toFixed(1)}%`,W-10,18); ctx.textAlign="left";
+  if(!pts.length){ ctx.fillStyle="#6b7490"; ctx.font="14px system-ui"; ctx.textAlign="center"; ctx.fillText("Click or drag here to add points",W/2,H/2); ctx.textAlign="left"; }
+}
+
+function posOf(e){ const r=cv.getBoundingClientRect(); return [e.clientX-r.left,e.clientY-r.top]; }
+function addAt(px,py,cls){
+  const r=P.brush, k=r<2?1:P.dens;
+  for(let i=0;i<k;i++){
+    if(pts.length>=2000) break;
+    const a=Math.random()*6.2832, rad=r*Math.sqrt(Math.random());
+    const [x,y]=toData(px+Math.cos(a)*rad,py+Math.sin(a)*rad);
+    const p=mk(x,y,cls); pts.push(p); insertOrder(p);
+  }
+}
+function eraseAt(px,py){
+  const r=Math.max(P.brush,10), gone=new Set();
+  for(const p of pts){ const [qx,qy]=toPx(p.x,p.y); if(Math.hypot(qx-px,qy-py)<=r) gone.add(p.id); }
+  if(!gone.size) return;
+  const no=[]; let ns=0;
+  order.forEach((p,i)=>{ if(!gone.has(p.id)){ no.push(p); if(i<seen) ns++; } });
+  order=no; seen=ns; pts=pts.filter(p=>!gone.has(p.id)); sel=-1;
+}
+let drag=null, timer=null, lastAdd=null;
+function act(px,py){
+  if(!drag) return;
+  if(drag.erase) eraseAt(px,py); else addAt(px,py,drag.cls);
+  dataChanged();
+}
+cv.addEventListener("contextmenu",e=>e.preventDefault());
+cv.addEventListener("pointerdown",e=>{
+  cv.setPointerCapture(e.pointerId);
+  const [px,py]=posOf(e); mouse=[px,py];
+  const erase=e.button===2||e.shiftKey||tool==="erase";
+  if(tool==="inspect"&&!erase){
+    let best=-1,bd=18; pts.forEach((p,i)=>{const [qx,qy]=toPx(p.x,p.y);const d=Math.hypot(qx-px,qy-py);if(d<bd){bd=d;best=i;}});
+    sel=best; schedule(false,true); return;
+  }
+  drag={erase,cls:tool==="c1"?1:0}; lastAdd=[px,py]; act(px,py);
+  if(erase||P.brush>=2){ timer=setInterval(()=>{ if(mouse) act(mouse[0],mouse[1]); },45); }
+});
+cv.addEventListener("pointermove",e=>{
+  mouse=posOf(e);
+  if(drag){
+    if(drag.erase) act(mouse[0],mouse[1]);
+    else if(P.brush<2&&Math.hypot(mouse[0]-lastAdd[0],mouse[1]-lastAdd[1])>9){ lastAdd=[...mouse]; act(mouse[0],mouse[1]); }
+  }
+  schedule(false);
+});
+const endDrag=()=>{ drag=null; clearInterval(timer); timer=null; };
+cv.addEventListener("pointerup",endDrag); cv.addEventListener("pointercancel",endDrag);
+cv.addEventListener("pointerleave",()=>{ mouse=null; schedule(false); });
+
+const PHASES=[
+  ["1. Class Prior","P(C) = N_c / N","Computes initial class probability before assessing features."],
+  ["2. Feature Mean","μ_c = (1/N_c) Σ x","Calculates the expected center of each class distribution."],
+  ["3. Feature Variance","σ²_c = (1/N_c) Σ (x − μ_c)² + ε","Measures spread; smoothing prevents zero variance."],
+  ["4. Likelihood","N(x|μ,σ²) = 1/√(2πσ²) exp(...)","Evaluates probability density of input features given class."],
+  ["5. Posterior Score","P(C|x) ∝ P(C) · ∏ N(x_j|μ,σ²)","Combines prior and likelihood logs; highest score wins."]
+];
+function buildPhases(){
+  $("#phases").innerHTML=PHASES.map((p,i)=>`<div class="ph" id="ph${i}"><div class="t"><span>${i+1}</span>${p[0]}</div><code class="mono">${p[1]}</code><p>${p[2]}</p><div class="v mono" id="phv${i}">—</div></div>`).join("");
+}
+function flashPhases(){
+  for(let i=0;i<5;i++) setTimeout(()=>{ const el=$("#ph"+i); if(!el) return; el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),520); }, i*170);
+}
+function updateStats(){
+  const N=order.length;
+  const st=!N?"No data":converged?"Converged ✓":playing?"Training…":!seen?"Ready":!scorer?"Waiting for classes":"Paused";
+  const col=converged?"var(--ok)":playing?"var(--warn)":"#fff";
+  $("#mstats").innerHTML=`
+    <div class="stat"><small>Samples read</small><b class="mono">${seen} / ${N}</b></div>
+    <div class="stat"><small>Loss</small><b class="mono">${fmt(loss,3)}</b></div>
+    <div class="stat"><small>Target loss</small><b class="mono" style="color:var(--warn)">${fmt(target,3)}</b></div>
+    <div class="stat"><small>Accuracy</small><b class="mono">${(acc*100).toFixed(1)}%</b></div>
+    <div class="stat"><small>Status</small><b style="color:${col};font-size:12.5px">${st}</b></div>`;
+  const pr=priorsOf(S), v=(c,j)=>S[c].n?S[c].m2[j]/S[c].n+eps:null;
+  $("#phv0").innerHTML=`n = (${S[0].n}, ${S[1].n})<br>P(C) = (${fmt(pr[0],2)}, ${fmt(pr[1],2)})`;
+  $("#phv1").innerHTML=`μ₀=(${fmt(S[0].n?S[0].mu[0]:null,2)}, ${fmt(S[0].n?S[0].mu[1]:null,2)})<br>μ₁=(${fmt(S[1].n?S[1].mu[0]:null,2)}, ${fmt(S[1].n?S[1].mu[1]:null,2)})`;
+  $("#phv2").innerHTML=`ε = ${fmt(eps,4)}<br>σ²₀ = ${fmt(v(0,0),3)}`;
+  $("#phv3").innerHTML=scorer?`Gaussian Likelihoods Active`:`Need both classes`;
+  $("#phv4").innerHTML=scorer?`Accuracy = ${(acc*100).toFixed(1)}%`:`Pending`;
+}
+function updateParams(){
+  const pr=priorsOf(S), ax=meta.axes.map(a=>a.length>4?a.split(" ")[0]:a);
+  let h=`<table class="tbl"><tr><th>Class</th><th>n</th><th>Prior P(C)</th><th>μ ${ax[0]}</th><th>μ ${ax[1]}</th><th>σ² ${ax[0]}</th><th>σ² ${ax[1]}</th></tr>`;
+  for(let c=0;c<2;c++){
+    const s=S[c], has=s.n>0;
+    h+=`<tr><td class="${c?'pos':'neg'}">${meta.names[c]}</td><td class="mono">${s.n}</td><td class="mono">${has||S[1-c].n?fmt(pr[c],3):"—"}</td>`+
+       `<td class="mono">${has?fmt(s.mu[0]):"—"}</td><td class="mono">${has?fmt(s.mu[1]):"—"}</td>`+
+       `<td class="mono">${has?fmt(s.m2[0]/s.n+eps):"—"}</td><td class="mono">${has?fmt(s.m2[1]/s.n+eps):"—"}</td></tr>`;
+  }
+  $("#params").innerHTML=h+"</table>";
+  const M=(f)=>[0,1].map(c=>S[c].n?`[${f(c,0)}, ${f(c,1)}]`:"[ —, — ]").join("<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
+  $("#eq").innerHTML=
+    `μ = ${M((c,j)=>fmt(S[c].mu[j],2))}<br>`+
+    `σ² = ${M((c,j)=>fmt(S[c].m2[j]/S[c].n+eps,2))}<br>`+
+    `<span style="color:var(--mute)">Smoothing ε = ${P.smooth.toExponential(0)} × max variance = ${fmt(eps,5)}</span><br>`+
+    `<span style="color:var(--mute)">Under Naive Bayes, conditional feature independence allows multiplying individual feature likelihoods.</span>`;
+}
+function updateUpdate(){
+  const el=$("#update");
+  if(!lastDet){ el.innerHTML=`<div class="say" style="margin-top:0">Click <b>Step</b> to observe running updates on class statistics.</div>`; return; }
+  const d=lastDet, c=d.c, ax=meta.axes.map(a=>a.length>4?a.split(" ")[0]:a);
+  const rows=[0,1].map(j=>`<tr><td>${ax[j]}</td><td class="mono">${fmt(d.old.mu[j])}</td><td class="mono">${fmt(d.delta[j])}</td><td class="mono"><b>${fmt(d.neu.mu[j])}</b></td><td class="mono">${fmt(d.old.n?d.old.m2[j]/d.old.n+eps:null)}</td><td class="mono"><b>${fmt(d.neu.m2[j]/d.neu.n+eps)}</b></td></tr>`).join("");
+  el.innerHTML=`<div class="mono" style="font-size:12px;margin-bottom:6px">Sample #${d.p.id}: x = (${fmt(d.p.x,2)}, ${fmt(d.p.y,2)}) → <b class="${c?'pos':'neg'}">${meta.names[c]}</b> &nbsp; n: ${d.old.n} → <b>${d.neu.n}</b></div>
+   <table class="tbl"><tr><th>Feature</th><th>μ before</th><th>δ</th><th>μ after</th><th>σ² before</th><th>σ² after</th></tr>${rows}</table>
+   <div class="hint">Welford's algorithm updates mean and variance incrementally without reprocessing historical data.</div>`;
+}
+function gaussSVG(j,p){
+  const lo=j===0?-4:-3, hi=-lo, X=v=>12+(v-lo)/(hi-lo)*276, par=scorer.par;
+  const dens=(c,v)=>Math.exp(-((v-par[c].mu[j])**2)/(2*par[c].v[j]))/Math.sqrt(2*Math.PI*par[c].v[j]);
+  const xs=[]; for(let i=0;i<=200;i++) xs.push(lo+(hi-lo)*i/200); xs.push(par[0].mu[j],par[1].mu[j]); xs.sort((a,b)=>a-b);
+  let mx=0; for(const v of xs){ mx=Math.max(mx,dens(0,v),dens(1,v)); } mx=Math.max(mx,1e-12);
+  const Y=v=>104-Math.min(1,v/mx)*86, xv=j===0?p.x:p.y;
+  const path=c=>xs.map((v,i)=>(i?"L":"M")+X(v).toFixed(1)+","+Y(dens(c,v)).toFixed(1)).join("");
+  const col=["#22d3ee","#f472b6"];
+  let s=`<svg viewBox="0 0 300 130"><line x1="12" x2="288" y1="104" y2="104" stroke="#2b3347"/>`;
+  for(let c=0;c<2;c++) s+=`<path d="${path(c)} L${X(hi)},104 L${X(lo)},104Z" fill="${col[c]}" fill-opacity=".10" stroke="none"/><path d="${path(c)}" fill="none" stroke="${col[c]}" stroke-width="2"/>`;
+  s+=`<line x1="${X(xv)}" x2="${X(xv)}" y1="10" y2="104" stroke="#fff" stroke-dasharray="3 3"/>`;
+  for(let c=0;c<2;c++) s+=`<circle cx="${X(clamp(xv,lo,hi))}" cy="${Y(dens(c,xv))}" r="4.5" fill="${col[c]}" stroke="#fff" stroke-width="1.2"/>`;
+  s+=`<text x="14" y="14" fill="#8a93a8" font-size="10">Feature ${meta.axes[j]}: likelihood distribution</text><text x="${clamp(X(xv)+5,14,230)}" y="124" fill="#e8ebf2" font-size="10">x = ${fmt(xv,2)}</text></svg>`;
+  return s;
+}
+function updateSample(){
+  const el=$("#sample");
+  if(!pts.length){ el.innerHTML=`<div class="say" style="margin-top:0">No data points available for inspection.</div>`; return; }
+  const i=sel>=0&&pts[sel]?sel:0, p=pts[i];
+  if(!scorer){ el.innerHTML=`<div class="say" style="margin-top:0">Model requires samples from both classes to compute scores. Press Step.</div>`; return; }
+  const sc=scorer, par=sc.par, lp=[0,1].map(c=>par[c].lp), l1=[0,1].map(c=>sc.ll(c,0,p.x)), l2=[0,1].map(c=>sc.ll(c,1,p.y));
+  const tot=[0,1].map(c=>lp[c]+l1[c]+l2[c]), post1=sig(tot[1]-tot[0]), w=tot[1]>=tot[0]?1:0, ok=w===p.c;
+  const cell=(c,v,b)=>`<td class="mono ${w===c&&b?'win':''}">${b?'<b>'+fmt(v,2)+'</b>':fmt(v,2)}</td>`;
+  el.innerHTML=`<div class="gwrap">${gaussSVG(0,p)}${gaussSVG(1,p)}</div>
+   <div class="mono" style="font-size:12px;margin:8px 0 4px">Point #${p.id}: x = (${fmt(p.x,2)}, ${fmt(p.y,2)}) &nbsp; True = <b class="${p.c?'pos':'neg'}">${meta.names[p.c]}</b></div>
+   <table class="tbl"><tr><th>Log-score component</th><th class="neg">${meta.names[0]}</th><th class="pos">${meta.names[1]}</th></tr>
+    <tr><td>Log Prior ln P(C)</td>${cell(0,lp[0])}${cell(1,lp[1])}</tr>
+    <tr><td>Log Likelihood ln P(${meta.axes[0]}|C)</td>${cell(0,l1[0])}${cell(1,l1[1])}</tr>
+    <tr><td>Log Likelihood ln P(${meta.axes[1]}|C)</td>${cell(0,l2[0])}${cell(1,l2[1])}</tr>
+    <tr><td><b>Total Posterior Score</b></td>${cell(0,tot[0],true)}${cell(1,tot[1],true)}</tr></table>
+   <div class="say">Naive Bayes computes class scores by summing log priors and log likelihoods. Class ${w} yields the maximum score, resulting in <b>P(Class 1 | x) = ${(post1*100).toFixed(1)}%</b> (Prediction: <b>${w}</b> — ${ok?"<span class='good'>Correct</span>" : "<span class='bad'>Incorrect</span>"}).</div>`;
+}
+function updateMatrix(){
+  let h=`<tr><th>#</th><th>${meta.axes[0].split(" ")[0]}</th><th>${meta.axes[1].split(" ")[0]}</th><th>y</th><th>P(1|x)</th><th>pred</th><th></th><th>read</th></tr>`;
+  const lim=Math.min(10,pts.length);
+  for(let i=0;i<lim;i++){
+    const p=pts[i], ok=p.pred===p.c;
+    h+=`<tr data-i="${i}" class="${i===sel?'sel':''}"><td>${p.id}</td><td class="mono">${fmt(p.x,2)}</td><td class="mono">${fmt(p.y,2)}</td><td class="mono ${p.c?'pos':'neg'}">${p.c}</td><td class="mono">${scorer?fmt(p.p,3):"—"}</td><td class="mono">${scorer?p.pred:"—"}</td><td class="${ok?'good':'bad'}">${scorer?(ok?"✓":"✗"):""}</td><td>${p.s?"●":"○"}</td></tr>`;
+  }
+  if(!pts.length) h+=`<tr><td colspan="8" style="text-align:center;color:var(--mute);padding:14px">No data</td></tr>`;
+  $("#matrix").innerHTML=h;
+}
+$("#stateCard").addEventListener("click",e=>{
+  const row=e.target.closest("tr[data-i]"); if(row){ sel=+row.dataset.i; schedule(false,true); return; }
+  const b2=e.target.closest("[data-act]"); if(b2&&pts.length){
+    const cur=sel>=0?sel:0; sel=(cur+(b2.dataset.act==="next"?1:-1)+pts.length)%pts.length; schedule(false,true);
+  }
+});
+
+const lcv=$("#lcv"), lctx=lcv.getContext("2d"); let LW=600,LH=280;
+function fitLoss(){ const wrap=$("#lwrap"); LW=Math.max(260,Math.floor(wrap.clientWidth)); LH=280; const d=window.devicePixelRatio||1; lcv.style.width=LW+"px"; lcv.style.height=LH+"px"; lcv.width=LW*d; lcv.height=LH*d; lctx.setTransform(d,0,0,d,0,0); }
+function drawLoss(){
+  const g=lctx; g.clearRect(0,0,LW,LH);
+  const pad={l:50,r:46,t:14,b:36}, pw=LW-pad.l-pad.r, ph=LH-pad.t-pad.b;
+  g.fillStyle="#05070b"; g.fillRect(0,0,LW,LH);
+  const logY=$("#logY").checked, showAcc=$("#showAcc").checked;
+  let mxL=target, mnL=target; for(const h of hist){ mxL=Math.max(mxL,h[1]); mnL=Math.min(mnL,h[1]); }
+  const N=Math.max(order.length,1);
+  let Y;
+  if(logY){
+    const lo=Math.max(1e-3,mnL*.7), hi=Math.max(mxL*1.4,lo*3);
+    Y=v=>pad.t+ph-(Math.log(Math.max(v,lo))-Math.log(lo))/(Math.log(hi)-Math.log(lo))*ph;
+    g.font="10.5px system-ui"; g.strokeStyle="rgba(255,255,255,.07)"; g.lineWidth=1; g.textAlign="right";
+    for(let e=Math.floor(Math.log10(lo))-1;e<=Math.ceil(Math.log10(hi));e++) for(const m of [1,2,5]){
+      const v=m*Math.pow(10,e); if(v<lo||v>hi) continue; const y=Y(v);
+      g.beginPath(); g.moveTo(pad.l,y); g.lineTo(LW-pad.r,y); g.stroke(); g.fillStyle="#7b849b"; g.fillText(v>=1?String(v):v.toPrecision(1),pad.l-6,y+3.5);
+    }
+  } else {
+    mxL=Math.max(mxL*1.08,.05); Y=v=>pad.t+ph-(v/mxL)*ph;
+    g.font="10.5px system-ui"; g.strokeStyle="rgba(255,255,255,.07)"; g.lineWidth=1; g.textAlign="right";
+    for(let i=0;i<=5;i++){ const v=mxL*i/5,y=Y(v); g.beginPath(); g.moveTo(pad.l,y); g.lineTo(LW-pad.r,y); g.stroke(); g.fillStyle="#7b849b"; g.fillText(v.toFixed(2),pad.l-6,y+3.5); }
+  }
+  const X=e=>pad.l+e/N*pw, YA=a=>pad.t+ph-a*ph;
+  if(showAcc){ g.textAlign="left"; g.fillStyle="#2f9e78"; for(let i=0;i<=5;i++) g.fillText((i*20)+"%",LW-pad.r+6,YA(i/5)+3.5); }
+  g.textAlign="center"; g.fillStyle="#7b849b";
+  for(let i=0;i<=5;i++){ const e=Math.round(N*i/5); g.fillText(e,X(e),LH-pad.b+15); }
+  g.fillStyle="#9aa3b9"; g.font="11px system-ui"; g.fillText("Samples absorbed",pad.l+pw/2,LH-6);
+  g.save(); g.translate(12,pad.t+ph/2); g.rotate(-Math.PI/2); g.fillText("Log-loss",0,0); g.restore();
+  g.textAlign="left";
+  const yt=Y(target);
+  g.save(); g.strokeStyle="#fbbf24"; g.lineWidth=1.5; g.setLineDash([6,4]); g.beginPath(); g.moveTo(pad.l,yt); g.lineTo(LW-pad.r,yt); g.stroke(); g.restore();
+  g.fillStyle="#fbbf24"; g.font="10.5px system-ui"; g.textAlign="right"; g.fillText("target "+fmt(target,3),LW-pad.r-4,yt-5); g.textAlign="left";
+  const sample=hist.length>700?hist.filter((_,i)=>i%Math.ceil(hist.length/700)===0||i===hist.length-1):hist;
+  if(hist.length<2){ g.fillStyle="#7b849b"; g.font="13px system-ui"; g.textAlign="center"; g.fillText("Press Step or Play to start loss tracking",pad.l+pw/2,pad.t+ph/2); g.textAlign="left"; }
+  if(showAcc&&sample.length>1){
+    g.strokeStyle="rgba(52,211,153,.9)"; g.lineWidth=1.6; g.setLineDash([5,3]); g.beginPath();
+    sample.forEach((h,i)=>{ i?g.lineTo(X(h[0]),YA(h[2])):g.moveTo(X(h[0]),YA(h[2])); }); g.stroke(); g.setLineDash([]);
+  }
+  if(sample.length>1){
+    const gr=g.createLinearGradient(0,pad.t,0,pad.t+ph); gr.addColorStop(0,"rgba(34,211,238,.28)"); gr.addColorStop(1,"rgba(34,211,238,0)");
+    g.beginPath(); sample.forEach((h,i)=>{ i?g.lineTo(X(h[0]),Y(h[1])):g.moveTo(X(h[0]),Y(h[1])); });
+    g.lineTo(X(sample[sample.length-1][0]),pad.t+ph); g.lineTo(X(sample[0][0]),pad.t+ph); g.closePath(); g.fillStyle=gr; g.fill();
+    g.strokeStyle="#22d3ee"; g.lineWidth=2.4; g.beginPath(); sample.forEach((h,i)=>{ i?g.lineTo(X(h[0]),Y(h[1])):g.moveTo(X(h[0]),Y(h[1])); }); g.stroke();
+  }
+  const last=hist[hist.length-1];
+  if(last){ g.fillStyle="#22d3ee"; g.beginPath(); g.arc(X(last[0]),Y(last[1]),4.5,0,6.2832); g.fill(); g.strokeStyle="#fff"; g.lineWidth=1.2; g.stroke(); }
+  g.strokeStyle="#2b3347"; g.lineWidth=1; g.strokeRect(pad.l,pad.t,pw,ph);
+  $("#lossNow").textContent=`now ${fmt(loss,3)} · target ${fmt(target,3)}`;
+}
+
+let raf=0, lastState=0, forceState=false;
+function schedule(baseDirty,forceS){
+  if(baseDirty) bgDirty=true;
+  if(forceS) forceState=true;
+  if(raf) return;
+  raf=requestAnimationFrame(()=>{
+    raf=0; render(); drawLoss();
+    const now=performance.now();
+    if(!playing||forceState||now-lastState>90){ updateStats(); updateParams(); updateUpdate(); updateSample(); updateMatrix(); lastState=now; forceState=false; }
+  });
+}
+
+function setMsg(t){ $("#status").textContent=t; }
+function syncLabels(){
+  $("#smV").textContent=P.smooth.toExponential(0)+" × max σ²";
+  $("#perV").textContent=P.per;
+  $("#spdV").textContent=P.spd+" steps/s";
+  $("#brushV").textContent=P.brush+" px";
+  $("#densV").textContent=P.dens;
+}
+function hyperChanged(){ eps=computeEps(); evaluate(); hist=[[seen,loss,acc]]; schedule(true,true); }
+$("#smooth").addEventListener("input",e=>{ P.smooth=Math.pow(10,+e.target.value); syncLabels(); hyperChanged(); });
+$("#prior").addEventListener("change",e=>{ P.prior=e.target.value; hyperChanged(); });
+$("#per").addEventListener("input",e=>{ P.per=+e.target.value; syncLabels(); });
+$("#spd").addEventListener("input",e=>{ P.spd=+e.target.value; syncLabels(); });
+$("#brush").addEventListener("input",e=>{ P.brush=+e.target.value; syncLabels(); schedule(false); });
+$("#dens").addEventListener("input",e=>{ P.dens=+e.target.value; syncLabels(); });
+$("#ord").addEventListener("change",e=>{ P.order=e.target.value; reorderUnseen(); setMsg("Sample order updated for remaining points."); schedule(true,true); });
+$("#ell").addEventListener("change",e=>{ P.ell=e.target.checked; schedule(false); });
+$("#tools").addEventListener("click",e=>{
+  const bt=e.target.closest("button"); if(!bt) return;
+  tool=bt.dataset.tool; document.querySelectorAll("#tools button").forEach(x=>x.classList.toggle("on",x===bt));
+  cv.style.cursor=tool==="inspect"?"pointer":"crosshair"; schedule(false);
+});
+function setNames(){ document.querySelector(".n0").textContent=meta.names[0]; document.querySelector(".n1").textContent=meta.names[1]; }
+function generate(){
+  stopPlay(); meta=DATASETS[dsel.value]; setNames();
+  const n=clamp(+$("#nPts").value||150,10,800);
+  pts=meta.gen(n).map(p=>mk(clamp(p.x,-3.9,3.9),clamp(p.y,-2.9,2.9),p.c));
+  order=P.order==="shuffle"?shuffle([...pts]):[...pts]; seen=0; sel=-1;
+  $("#cnt").textContent=pts.length+" points";
+  rebuild(); lastDet=null; lastBatch=[]; afterChange();
+  setMsg(`Generated ${n} points: ${meta.label}. Press Step to begin batch ingestion.`);
+}
+dsel.addEventListener("change",generate);
+$("#btnRand").addEventListener("click",generate);
+$("#btnClear").addEventListener("click",()=>{ stopPlay(); pts=[]; order=[]; seen=0; sel=-1; dataChanged(); setMsg("Canvas cleared."); });
+$("#btnStep").addEventListener("click",()=>{
+  stopPlay();
+  if(!pts.length){ setMsg("Add data points first."); return; }
+  if(seen>=order.length){ setMsg("All samples absorbed. Reset model or add new points."); return; }
+  if(stepOnce()){ flashPhases(); }
+  schedule(true,true);
+});
+$("#btnPlay").addEventListener("click",()=>{ if(playing){ stopPlay(); setMsg("Paused."); schedule(false,true); } else startPlay(); });
+$("#btnReset").addEventListener("click",()=>resetModel(false));
+$("#showAcc").addEventListener("change",()=>schedule(false));
+$("#logY").addEventListener("change",()=>schedule(false));
+
+const ro=new ResizeObserver(()=>{ fitCanvas(); fitLoss(); schedule(true,true); });
+ro.observe($("#cwrap")); ro.observe($("#lwrap"));
+
+buildPhases(); syncLabels(); fitCanvas(); fitLoss();
+dsel.value="blobs"; generate();
+})();
+</script>
+</body>
+</html>
