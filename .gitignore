@@ -1,0 +1,10 @@
+.ipynb_checkpoints/
+__pycache__/
+.venv/
+venv/
+.DS_Store
+Thumbs.db
+
+# รูปที่ notebook สร้างตอนรัน (ฉบับที่ใช้ใน README อยู่ใน images/)
+/roc_curves_comparison_fixed.png
+/feature_importance.png
